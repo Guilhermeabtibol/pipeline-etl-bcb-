@@ -1,34 +1,35 @@
-from app.database import get_engine
+from app.export import export_to_excel
 from app.extract import fetch_bcra_data
-from app.transform import transform_economic_data
 from app.load import load_to_mysql
+from app.transform import transform_economic_data
+
 
 def run_pipeline():
-    print("--------------------------------------------------")
-    print("🚀 INICIANDO PIPELINE ETL DE INDICADORES FINANCEIROS")
-    print("--------------------------------------------------")
-    
-    engine = get_engine()
+    print("🚀 Iniciando Pipeline ETL...")
 
-    # 1. Extração da cotação do Dólar (Série 10813)
-    print("\n1. Extraindo cotação do Dólar (API BCB)...")
-    raw_dolar = fetch_bcra_data(10813)
+    # 1. Extract
+    raw_data = fetch_bcra_data()
 
-    # 2. Transformação dos dados
-    print("\n2. Transformando e tratando os dados com Pandas...")
-    df_dolar = transform_economic_data(raw_dolar, "USD_BRL")
+    if raw_data.empty:
+        print(
+            "[ERRO] Não foi possível extrair dados de nenhuma fonte. Encerrando."
+        )
+        return
 
-    # Filtramos apenas os últimos 365 dias para a carga inicial ser ágil
-    if not df_dolar.empty:
-        df_dolar = df_dolar.tail(365)
-        
-        # 3. Carga no MySQL
-        print("\n3. Gravando dados tratados no MySQL...")
-        load_to_mysql(df_dolar, engine)
+    # 2. Transform
+    df_clean = transform_economic_data(raw_data, indicador_nome="USD/BRL")
 
-    print("\n--------------------------------------------------")
-    print("✅ PIPELINE FINALIZADO COM SUCESSO!")
-    print("--------------------------------------------------")
+    # 3. Load (MySQL)
+    try:
+        engine = create_engine(DATABASE_URL)
+        load_to_mysql(df_clean, engine=engine)
+    except Exception as e:
+        print(f"[ERRO - MAIN] Falha ao conectar ao banco de dados: {e}")
+
+    # 4. Export (Excel)
+    excel_file = export_to_excel(df_clean)
+    print(f"✅ Excel gerado com sucesso em: {excel_file}")
+
 
 if __name__ == "__main__":
     run_pipeline()
