@@ -1,0 +1,12 @@
+# Variáveis de ambiente com dados sensíveis
+.env
+
+# Python / Virtual Environment
+__pycache__/
+*.py[cod]
+venv/
+.venv/
+
+# IDEs / Editores
+.vscode/
+.idea/
